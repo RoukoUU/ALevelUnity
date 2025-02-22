@@ -7,7 +7,6 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    // Move player in 2D space
     public float maxSpeed = 3.4f;
     public float jumpHeight = 6.5f;
     public float gravityScale = 1.5f;
@@ -21,7 +20,20 @@ public class PlayerController : MonoBehaviour
     CapsuleCollider2D mainCollider;
     Transform t;
 
-    // Use this for initialization
+    float leftPressStartTime = 0f;
+    bool leftPressed = false;
+    float rightPressStartTime = 0f;
+    bool rightPressed = false;
+
+    // DASH STUFF 
+    public bool canDash = true; // If player is allowed to dash - use for locking or unlocking mechanic later
+    public float dashSpeed = 10f; 
+    public float dashDuration = 0.2f; 
+    public float dashCooldown = 1f; // Cooldown
+    private bool isDashing = false; // Whether the player is currently dashing
+    private float dashEndTime = 0f; 
+    private float nextDashTime = 0f;
+
     void Start()
     {
         t = transform;
@@ -38,23 +50,17 @@ public class PlayerController : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
     void Update()
     {
-        // Movement controls
-        if ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D)) && (isGrounded || Mathf.Abs(r2d.linearVelocity.x) > 0.01f))
+        if ((Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.LeftArrow) || Input.GetKey(KeyCode.RightArrow)))
         {
-            moveDirection = Input.GetKey(KeyCode.A) ? -1 : 1;
+            moveDirection = Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow) ? -1 : 1;
         }
         else
         {
-            if (isGrounded || r2d.linearVelocity.magnitude < 0.01f)
-            {
-                moveDirection = 0;
-            }
+            moveDirection = 0;
         }
 
-        // Change facing direction
         if (moveDirection != 0)
         {
             if (moveDirection > 0 && !facingRight)
@@ -69,16 +75,44 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Jumping
         if (Input.GetKeyDown(KeyCode.W) && isGrounded)
         {
             r2d.linearVelocity = new Vector2(r2d.linearVelocity.x, jumpHeight);
         }
 
-        // Camera follow
         if (mainCamera)
         {
             mainCamera.transform.position = new Vector3(t.position.x, cameraPos.y, cameraPos.z);
+        }
+
+        if (Input.GetKeyDown(KeyCode.LeftArrow))
+        {
+            leftPressed = true;
+            leftPressStartTime = Time.time;
+        }
+        if (Input.GetKeyUp(KeyCode.LeftArrow))
+        {
+            leftPressed = false;
+        }
+
+        if (Input.GetKeyDown(KeyCode.RightArrow))
+        {
+            rightPressed = true;
+            rightPressStartTime = Time.time;
+        }
+        if (Input.GetKeyUp(KeyCode.RightArrow))
+        {
+            rightPressed = false;
+        }
+
+        if (canDash && Input.GetKeyDown(KeyCode.LeftShift) && !isDashing && Time.time >= nextDashTime)
+        {
+            StartDash();
+        }
+
+        if (isDashing && Time.time >= dashEndTime)
+        {
+            EndDash();
         }
     }
 
@@ -86,10 +120,10 @@ public class PlayerController : MonoBehaviour
     {
         Bounds colliderBounds = mainCollider.bounds;
         float colliderRadius = mainCollider.size.x * 0.4f * Mathf.Abs(transform.localScale.x);
-        Vector3 groundCheckPos = colliderBounds.min + new Vector3(colliderBounds.size.x * 0.5f, colliderRadius * 0.9f, 0);
-        // Check if player is grounded
+        Vector3 groundCheckPos = colliderBounds.min
+                                 + new Vector3(colliderBounds.size.x * 0.5f, colliderRadius * 0.9f, 0);
+
         Collider2D[] colliders = Physics2D.OverlapCircleAll(groundCheckPos, colliderRadius);
-        //Check if any of the overlapping colliders are not player collider, if so, set isGrounded to true
         isGrounded = false;
         if (colliders.Length > 0)
         {
@@ -103,11 +137,62 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // Apply movement velocity
-        r2d.linearVelocity = new Vector2((moveDirection) * maxSpeed, r2d.linearVelocity.y);
+        {
+            r2d.linearVelocity = new Vector2(moveDirection * maxSpeed, r2d.linearVelocity.y);
+        }
 
-        // Simple debug
+        float pressDuration = 0f;
+        if (leftPressed)
+        {
+            pressDuration = Time.time - leftPressStartTime;
+        }
+        else if (rightPressed)
+        {
+            pressDuration = Time.time - rightPressStartTime;
+        }
+
+        // Decide how to scale velocity:
+        // e.g., short press < 0.2 => half speed, else normal to 1.5x speed
+        // You can tweak these thresholds and multipliers to taste
+        if (pressDuration > 0f && !isDashing)
+        {
+            float multiplier;
+            if (pressDuration < 0.2f)
+            {
+                multiplier = 0.5f;
+            }
+            else if (pressDuration < 1.0f)
+            {
+                multiplier = 1.0f;
+            }
+            else
+            {
+                multiplier = 1.5f; 
+            }
+
+            var v = r2d.linearVelocity;
+            v.x *= multiplier;
+            r2d.linearVelocity = v;
+        }
+
+        // Simple debug lines
         Debug.DrawLine(groundCheckPos, groundCheckPos - new Vector3(0, colliderRadius, 0), isGrounded ? Color.green : Color.red);
         Debug.DrawLine(groundCheckPos, groundCheckPos - new Vector3(colliderRadius, 0, 0), isGrounded ? Color.green : Color.red);
+    }
+
+    void StartDash()
+    {
+        isDashing = true;
+        dashEndTime = Time.time + dashDuration;
+        nextDashTime = Time.time + dashCooldown;
+
+        float dashDirection = facingRight ? 1 : -1;
+        r2d.linearVelocity = new Vector2(dashDirection * dashSpeed, r2d.linearVelocity.y);
+    }
+
+    void EndDash()
+    {
+        isDashing = false;
+        r2d.linearVelocity = new Vector2(0, r2d.linearVelocity.y); // Stop horizontal movement after dash
     }
 }
