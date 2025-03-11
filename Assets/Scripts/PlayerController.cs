@@ -7,8 +7,8 @@ using UnityEngine;
 
 public class PlayerController : MonoBehaviour
 {
-    public float maxSpeed = 3.4f;
-    public float jumpHeight = 6.5f;
+    public float maxSpeed = 5.3f;
+    public float jumpHeight = 6.8f;
     public float gravityScale = 1.5f;
     public Camera mainCamera;
 
@@ -27,7 +27,7 @@ public class PlayerController : MonoBehaviour
 
     // DASH STUFF 
     public bool canDash = true; // If player is allowed to dash
-    public float dashSpeed = 10f;
+    public float dashSpeed = 16f;
     public float dashDuration = 0.2f;
     public float dashCooldown = 1f; // Cooldown
     private bool isDashing = false; // Whether the player is currently dashing
@@ -195,19 +195,17 @@ public class PlayerController : MonoBehaviour
 
     void StartDash()
     {
+
+        dashTrail.enabled = true;
+        dashTrail.emitting = true;
+
         isDashing = true;
         isInvulnerable = true; // Player becomes invulnerable
         dashEndTime = Time.time + dashDuration;
         nextDashTime = Time.time + dashCooldown;
 
         float dashDirection = moveDirection != 0 ? moveDirection : (facingRight ? 1 : -1);
-        r2d.linearVelocity = new Vector2(dashDirection * dashSpeed, r2d.linearVelocity.y);
-
-        // Enable TrailRenderer for dash effect
-        if (dashTrail != null)
-        {
-            dashTrail.enabled = true;
-        }
+        r2d.linearVelocity = new Vector2(dashDirection * dashSpeed, r2d.linearVelocity.y);  
     }
 
     void EndDash()
@@ -217,11 +215,7 @@ public class PlayerController : MonoBehaviour
 
         r2d.linearVelocity = new Vector2(moveDirection * maxSpeed, r2d.linearVelocity.y);
 
-        // Trailrenderer > particle system 
-        if (dashTrail != null)
-        {
-            dashTrail.enabled = false;
-        }
+        dashTrail.emitting = false;
     }
 
     public void TakeDamage()
