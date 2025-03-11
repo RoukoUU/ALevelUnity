@@ -26,13 +26,19 @@ public class PlayerController : MonoBehaviour
     bool rightPressed = false;
 
     // DASH STUFF 
-    public bool canDash = true; // If player is allowed to dash - use for locking or unlocking mechanic later
-    public float dashSpeed = 10f; 
-    public float dashDuration = 0.2f; 
+    public bool canDash = true; // If player is allowed to dash
+    public float dashSpeed = 10f;
+    public float dashDuration = 0.2f;
     public float dashCooldown = 1f; // Cooldown
     private bool isDashing = false; // Whether the player is currently dashing
-    private float dashEndTime = 0f; 
+    private float dashEndTime = 0f;
     private float nextDashTime = 0f;
+
+    // Invulnerability
+    private bool isInvulnerable = false; // Whether the player is invulnerable during dash
+
+    // Trail Renderer
+    public TrailRenderer dashTrail; // Reference to the TrailRenderer for dash effect
 
     void Start()
     {
@@ -47,6 +53,12 @@ public class PlayerController : MonoBehaviour
         if (mainCamera)
         {
             cameraPos = mainCamera.transform.position;
+        }
+
+        // Ensure the TrailRenderer is disabled at the start
+        if (dashTrail != null)
+        {
+            dashTrail.enabled = false;
         }
     }
 
@@ -137,6 +149,7 @@ public class PlayerController : MonoBehaviour
             }
         }
 
+        if (!isDashing)
         {
             r2d.linearVelocity = new Vector2(moveDirection * maxSpeed, r2d.linearVelocity.y);
         }
@@ -167,7 +180,7 @@ public class PlayerController : MonoBehaviour
             }
             else
             {
-                multiplier = 1.5f; 
+                multiplier = 1.5f;
             }
 
             var v = r2d.linearVelocity;
@@ -183,16 +196,43 @@ public class PlayerController : MonoBehaviour
     void StartDash()
     {
         isDashing = true;
+        isInvulnerable = true; // Player becomes invulnerable
         dashEndTime = Time.time + dashDuration;
         nextDashTime = Time.time + dashCooldown;
 
-        float dashDirection = facingRight ? 1 : -1;
+        float dashDirection = moveDirection != 0 ? moveDirection : (facingRight ? 1 : -1);
         r2d.linearVelocity = new Vector2(dashDirection * dashSpeed, r2d.linearVelocity.y);
+
+        // Enable TrailRenderer for dash effect
+        if (dashTrail != null)
+        {
+            dashTrail.enabled = true;
+        }
     }
 
     void EndDash()
     {
         isDashing = false;
-        r2d.linearVelocity = new Vector2(0, r2d.linearVelocity.y); // Stop horizontal movement after dash
+        isInvulnerable = false; 
+
+        r2d.linearVelocity = new Vector2(moveDirection * maxSpeed, r2d.linearVelocity.y);
+
+        // Trailrenderer > particle system 
+        if (dashTrail != null)
+        {
+            dashTrail.enabled = false;
+        }
+    }
+
+    public void TakeDamage()
+    {
+        if (!isInvulnerable)
+        {
+            Debug.Log("Player took damage!");
+        }
+        else
+        {
+            Debug.Log("Player is invulnerable during dash!");
+        }
     }
 }
