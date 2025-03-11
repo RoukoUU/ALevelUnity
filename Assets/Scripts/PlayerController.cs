@@ -40,6 +40,13 @@ public class PlayerController : MonoBehaviour
     // Trail Renderer
     public TrailRenderer dashTrail; // Reference to the TrailRenderer for dash effect
 
+    // SHOOTING STUFF
+    public GameObject bulletPrefab; 
+    public Transform firePoint;
+    public float bulletSpeed = 30f; 
+    public float fireRate = 4f;
+    private float nextFireTime = 0f; 
+
     void Start()
     {
         t = transform;
@@ -126,6 +133,12 @@ public class PlayerController : MonoBehaviour
         {
             EndDash();
         }
+
+        if (Input.GetKey(KeyCode.K) && Time.time >= nextFireTime)
+        {
+            Shoot();
+            nextFireTime = Time.time + fireRate;
+        }
     }
 
     void FixedUpdate()
@@ -205,17 +218,28 @@ public class PlayerController : MonoBehaviour
         nextDashTime = Time.time + dashCooldown;
 
         float dashDirection = moveDirection != 0 ? moveDirection : (facingRight ? 1 : -1);
-        r2d.linearVelocity = new Vector2(dashDirection * dashSpeed, r2d.linearVelocity.y);  
+        r2d.linearVelocity = new Vector2(dashDirection * dashSpeed, r2d.linearVelocity.y);
     }
 
     void EndDash()
     {
         isDashing = false;
-        isInvulnerable = false; 
+        isInvulnerable = false;
 
         r2d.linearVelocity = new Vector2(moveDirection * maxSpeed, r2d.linearVelocity.y);
 
         dashTrail.emitting = false;
+    }
+
+    void Shoot()
+    {
+        GameObject bullet = Instantiate(bulletPrefab, firePoint.position, firePoint.rotation);
+
+        Rigidbody2D bulletRb = bullet.GetComponent<Rigidbody2D>();
+        if (bulletRb != null)
+        {
+            bulletRb.linearVelocity = new Vector2(facingRight ? bulletSpeed : -bulletSpeed, 0);
+        }
     }
 
     public void TakeDamage()
